@@ -11,4 +11,5 @@ obj/
 /node_modules
 /wwwroot/node_modules
 
+.vscode/
 # End of https://www.toptal.com/developers/gitignore/api/dotnetcore
