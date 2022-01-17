@@ -11,6 +11,7 @@ namespace PyStubbler
 
         public static void BuildAssemblyStubs(string targetAssemblyPath, string? destPath = null, string[]? searchPaths = null)
         {
+
             // prepare resolver
             AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(AssemblyResolve);
 
@@ -22,49 +23,50 @@ namespace PyStubbler
 
             // extract types
             Type[] typesToStub = assemblyToStub.GetExportedTypes();
-            if (typesToStub.Length == 0)
+            string rootNamespace = assemblyToStub.GetName().Name;
+
+            DirectoryInfo destInfo = null;
+            if (destPath is null)
+                destInfo = Directory.CreateDirectory(rootNamespace);
+            else
             {
-                throw new Exception("No exported types!");
+                destInfo = Directory.CreateDirectory(destPath);
             }
 
-            List<string> namespaces = new List<string>();
-            foreach (Type stub in typesToStub)
+            // build type db
+            var stubDictionary = new Dictionary<string, List<Type>>();
+            foreach (var stubType in typesToStub)
             {
-                namespaces.Add(stub.Namespace);
+                if (!stubDictionary.ContainsKey(stubType.Namespace))
+                    stubDictionary[stubType.Namespace] = new List<Type>();
+                stubDictionary[stubType.Namespace].Add(stubType);
             }
 
-            foreach (Type stub in typesToStub)
+            List<string> namespaces = new List<string>(stubDictionary.Keys);
+            // stubDictionary.Select(i => $"{i.Key}: {i.Value}").ToList().ForEach(Console.WriteLine);
+
+            // generate stubs for each type
+            foreach (var stubList in stubDictionary.Values)
+                WriteStubList(destInfo, namespaces.ToArray(), stubList);
+
+            // update the setup.py version with the matching version of the assembly
+            var parentDirectory = destInfo.Parent;
+            string setup_py = Path.Combine(parentDirectory.FullName, "setup.py");
+            if (File.Exists(setup_py))
             {
-                string rootNamespace = stub.Namespace.Split('.')[0];
-
-                DirectoryInfo stubsDirectory;
-                if (destPath is null || !Directory.Exists(destPath))
-                    stubsDirectory = Directory.CreateDirectory(rootNamespace);
-                else
-                    stubsDirectory = Directory.CreateDirectory(Path.Combine(destPath, rootNamespace));
-
-                // generate stubs for each type
-                WriteStubList(stubsDirectory, namespaces.ToArray(), stub);
-
-                // update the setup.py version with the matching version of the assembly
-                var parentDirectory = stubsDirectory.Parent;
-                string setup_py = Path.Combine(parentDirectory.FullName, "setup.py");
-                if (File.Exists(setup_py))
+                string[] contents = File.ReadAllLines(setup_py);
+                for (int i = 0; i < contents.Length; i++)
                 {
-                    string[] contents = File.ReadAllLines(setup_py);
-                    for (int i = 0; i < contents.Length; i++)
+                    string line = contents[i].Trim();
+                    if (line.StartsWith("version="))
                     {
-                        string line = contents[i].Trim();
-                        if (line.StartsWith("version="))
-                        {
-                            line = contents[i].Substring(0, contents[i].IndexOf("="));
-                            var version = assemblyToStub.GetName().Version;
-                            line = line + $"=\"{version?.Major}.{version?.Minor}.{version?.Build}\",";
-                            contents[i] = line;
-                        }
+                        line = contents[i].Substring(0, contents[i].IndexOf("="));
+                        var version = assemblyToStub.GetName().Version;
+                        line = line + $"=\"{version.Major}.{version.Minor}.{version.Build}\",";
+                        contents[i] = line;
                     }
-                    File.WriteAllLines(setup_py, contents);
                 }
+                File.WriteAllLines(setup_py, contents);
             }
         }
 
@@ -101,16 +103,20 @@ namespace PyStubbler
         }
 
 
-        private static void WriteStubList(DirectoryInfo rootDirectory, string[] namespaces, Type stub)
+        private static void WriteStubList(DirectoryInfo destInfo, string[] allNamespaces, List<Type> stubTypes)
         {
             // sort the stub list so we get consistent output over time
-            // stubs.Sort((a, b) => { return a.Name.CompareTo(b.Name); });
+            stubTypes.Sort((a, b) => { return a.Name.CompareTo(b.Name); });
+            // Console.WriteLine(stubTypes[0].Namespace);
 
-            string[] ns = stub.Namespace.Split('.');
-            string path = rootDirectory.FullName;
-
-            for (int i = 1; i < ns.Length; i++)
+            string[] ns = stubTypes[0].Namespace.Split('.');
+            string path = destInfo.FullName;
+            Console.WriteLine(path);
+            for (int i = 0; i < ns.Length; i++)
+            {
                 path = Path.Combine(path, ns[i]);
+                Console.WriteLine(path.ToString());
+            }
 
             if (!Directory.Exists(path))
                 Directory.CreateDirectory(path);
@@ -119,7 +125,7 @@ namespace PyStubbler
 
             var sb = new System.Text.StringBuilder();
 
-            string[] allChildNamespaces = GetChildNamespaces(stub.Namespace, namespaces);
+            string[] allChildNamespaces = GetChildNamespaces(stubTypes[0].Namespace, allNamespaces);
             if (allChildNamespaces.Length > 0)
             {
                 sb.Append("__all__ = [");
@@ -133,187 +139,180 @@ namespace PyStubbler
             }
             sb.AppendLine("from typing import Tuple, Set, Iterable, List");
 
-
-            try
+            foreach (var stubType in stubTypes)
             {
-                var obsolete = stub.GetCustomAttribute(typeof(System.ObsoleteAttribute));
-                if (obsolete != null)
-                {
-                    return;
-                }
-            }
-            catch (Exception)
-            {
-                return;
-            }
-
-            sb.AppendLine();
-            sb.AppendLine();
-            if (stub.IsGenericType)
-                return; //skip generics for now
-            if (stub.IsEnum)
-            {
-                sb.AppendLine($"class {stub.Name}:");
-                var names = Enum.GetNames(stub);
-                var values = Enum.GetValues(stub);
-                for (int i = 0; i < names.Length; i++)
-                {
-                    string name = names[i];
-                    if (name.Equals("None", StringComparison.Ordinal))
-                        name = $"#{name}";
-
-                    object val = Convert.ChangeType(values.GetValue(i), Type.GetTypeCode(stub));
-                    sb.AppendLine($"    {name} = {val}");
-                }
-                return;
-            }
-
-            if (stub.BaseType != null &&
-                stub.BaseType.FullName.StartsWith(ns[0]) &&
-                stub.BaseType.FullName.IndexOf('+') < 0 &&
-                stub.BaseType.FullName.IndexOf('`') < 0
-                )
-                sb.AppendLine($"class {stub.Name}({stub.BaseType.Name}):");
-            else
-                sb.AppendLine($"class {stub.Name}:");
-
-            string classStartString = sb.ToString();
-
-            // constructors
-            ConstructorInfo[] constructors = stub.GetConstructors();
-            // sort for consistent output
-            Array.Sort(constructors, MethodCompare);
-            foreach (var constructor in constructors)
-            {
-                if (constructors.Length > 1)
-                    sb.AppendLine("    @overload");
-                sb.Append("    def __init__(self");
-                var parameters = constructor.GetParameters();
-                for (int i = 0; i < parameters.Length; i++)
-                {
-                    if (0 == i)
-                        sb.Append(", ");
-                    sb.Append($"{SafePythonName(parameters[i].Name)}: {ToPythonType(parameters[i].ParameterType)}");
-                    if (i < (parameters.Length - 1))
-                        sb.Append(", ");
-                }
-                sb.AppendLine("): ...");
-            }
-
-            // methods
-            MethodInfo[] methods = stub.GetMethods();
-            // sort for consistent output
-            Array.Sort(methods, MethodCompare);
-            Dictionary<string, int> methodNames = new Dictionary<string, int>();
-            foreach (var method in methods)
-            {
-                if (method.GetCustomAttribute(typeof(System.ObsoleteAttribute)) != null)
+                var obsolete = stubType.GetCustomAttribute(typeof(System.ObsoleteAttribute));
+                if (obsolete != null || stubType.Name.StartsWith("<"))
                     continue;
 
-                int count;
-                if (methodNames.TryGetValue(method.Name, out count))
-                    count++;
-                else
-                    count = 1;
-                methodNames[method.Name] = count;
-            }
-
-            foreach (var method in methods)
-            {
-                if (method.GetCustomAttribute(typeof(System.ObsoleteAttribute)) != null)
-                    continue;
-
-                if (method.DeclaringType != stub)
-                    continue;
-                var parameters = method.GetParameters();
-                int outParamCount = 0;
-                int refParamCount = 0;
-                foreach (var p in parameters)
+                sb.AppendLine();
+                sb.AppendLine();
+                if (stubType.IsGenericType)
+                    continue; //skip generics for now
+                if (stubType.IsEnum)
                 {
-                    if (p.IsOut)
-                        outParamCount++;
-                    else if (p.ParameterType.IsByRef)
-                        refParamCount++;
-                }
-                int parameterCount = parameters.Length - outParamCount;
-
-                if (method.IsSpecialName && (method.Name.StartsWith("get_") || method.Name.StartsWith("set_")))
-                {
-                    string propName = method.Name.Substring("get_".Length);
-                    if (method.Name.StartsWith("get_"))
-                        sb.AppendLine("    @property");
-                    else
+                    sb.AppendLine($"class {stubType.Name}:");
+                    var names = Enum.GetNames(stubType);
+                    var values = Enum.GetValues(stubType);
+                    for (int i = 0; i < names.Length; i++)
                     {
-                        sb.AppendLine($"    @{propName}.setter");
+                        string name = names[i];
+                        if (name.Equals("None", StringComparison.Ordinal))
+                            name = $"#{name}";
+
+                        object val = Convert.ChangeType(values.GetValue(i), Type.GetTypeCode(stubType));
+                        sb.AppendLine($"    {name} = {val}");
                     }
-                    sb.Append($"    def {propName}(");
-                }
-                else
-                {
-                    if (methodNames[method.Name] > 1)
-                        sb.AppendLine("    @overload");
-                    sb.Append($"    def {method.Name}(");
+                    continue;
                 }
 
-                bool addComma = false;
-                if (!method.IsStatic)
+                if (stubType.BaseType != null &&
+                  stubType.BaseType.FullName.StartsWith(ns[0]) &&
+                  stubType.BaseType.FullName.IndexOf('+') < 0 &&
+                  stubType.BaseType.FullName.IndexOf('`') < 0
+                  )
+                    sb.AppendLine($"class {stubType.Name}({stubType.BaseType.Name}):");
+                else
+                    sb.AppendLine($"class {stubType.Name}:");
+
+                string classStartString = sb.ToString();
+
+                // constructors
+                ConstructorInfo[] constructors = stubType.GetConstructors();
+                // sort for consistent output
+                Array.Sort(constructors, MethodCompare);
+                foreach (var constructor in constructors)
                 {
-                    sb.Append("self");
-                    addComma = true;
+                    if (constructors.Length > 1)
+                        sb.AppendLine("    @overload");
+                    sb.Append("    def __init__(self");
+                    var parameters = constructor.GetParameters();
+                    for (int i = 0; i < parameters.Length; i++)
+                    {
+                        if (0 == i)
+                            sb.Append(", ");
+                        sb.Append($"{SafePythonName(parameters[i].Name)}: {ToPythonType(parameters[i].ParameterType)}");
+                        if (i < (parameters.Length - 1))
+                            sb.Append(", ");
+                    }
+                    sb.AppendLine("): ...");
                 }
-                for (int i = 0; i < parameters.Length; i++)
+
+                // methods
+                MethodInfo[] methods = stubType.GetMethods();
+                // sort for consistent output
+                Array.Sort(methods, MethodCompare);
+                Dictionary<string, int> methodNames = new Dictionary<string, int>();
+                foreach (var method in methods)
                 {
-                    if (parameters[i].IsOut)
+                    if (method.GetCustomAttribute(typeof(System.ObsoleteAttribute)) != null)
                         continue;
 
-                    if (addComma)
-                        sb.Append(", ");
-
-                    sb.Append($"{SafePythonName(parameters[i].Name)}: {ToPythonType(parameters[i].ParameterType)}");
-                    addComma = true;
-                }
-                sb.Append(")");
-                {
-                    List<string> types = new List<string>();
-                    if (method.ReturnType == typeof(void))
-                    {
-                        if (outParamCount == 0 && refParamCount == 0)
-                            types.Add("None");
-                    }
+                    int count;
+                    if (methodNames.TryGetValue(method.Name, out count))
+                        count++;
                     else
-                        types.Add(ToPythonType(method.ReturnType));
+                        count = 1;
+                    methodNames[method.Name] = count;
+                }
 
+                foreach (var method in methods)
+                {
+                    if (method.GetCustomAttribute(typeof(System.ObsoleteAttribute)) != null)
+                        continue;
+
+                    if (method.DeclaringType != stubType)
+                        continue;
+                    var parameters = method.GetParameters();
+                    int outParamCount = 0;
+                    int refParamCount = 0;
                     foreach (var p in parameters)
                     {
-                        if (p.IsOut || (p.ParameterType.IsByRef))
-                        {
-                            types.Add(ToPythonType(p.ParameterType));
-                        }
+                        if (p.IsOut)
+                            outParamCount++;
+                        else if (p.ParameterType.IsByRef)
+                            refParamCount++;
                     }
+                    int parameterCount = parameters.Length - outParamCount;
 
-                    sb.Append($" -> ");
-                    if (outParamCount == 0 && refParamCount == 0)
-                        sb.Append(types[0]);
+                    if (method.IsSpecialName && (method.Name.StartsWith("get_") || method.Name.StartsWith("set_")))
+                    {
+                        string propName = method.Name.Substring("get_".Length);
+                        if (method.Name.StartsWith("get_"))
+                            sb.AppendLine("    @property");
+                        else
+                        {
+                            sb.AppendLine($"    @{propName}.setter");
+                        }
+                        sb.Append($"    def {propName}(");
+                    }
                     else
                     {
-                        sb.Append("Tuple[");
-                        for (int i = 0; i < types.Count; i++)
-                        {
-                            if (i > 0)
-                                sb.Append(", ");
-                            sb.Append(types[i]);
-                        }
-                        sb.Append("]");
+                        if (methodNames[method.Name] > 1)
+                            sb.AppendLine("    @overload");
+                        sb.Append($"    def {method.Name}(");
                     }
-                }
-                sb.AppendLine(": ...");
-            }
-            // If no strings appended, class is empty. add "pass"
-            if (sb.ToString().Length == classStartString.Length)
-            {
-                sb.AppendLine($"    pass");
-            }
 
+                    bool addComma = false;
+                    if (!method.IsStatic)
+                    {
+                        sb.Append("self");
+                        addComma = true;
+                    }
+                    for (int i = 0; i < parameters.Length; i++)
+                    {
+                        if (parameters[i].IsOut)
+                            continue;
+
+                        if (addComma)
+                            sb.Append(", ");
+
+                        sb.Append($"{SafePythonName(parameters[i].Name)}: {ToPythonType(parameters[i].ParameterType)}");
+                        addComma = true;
+                    }
+                    sb.Append(")");
+                    {
+                        List<string> types = new List<string>();
+                        if (method.ReturnType == typeof(void))
+                        {
+                            if (outParamCount == 0 && refParamCount == 0)
+                                types.Add("None");
+                        }
+                        else
+                            types.Add(ToPythonType(method.ReturnType));
+
+                        foreach (var p in parameters)
+                        {
+                            if (p.IsOut || (p.ParameterType.IsByRef))
+                            {
+                                types.Add(ToPythonType(p.ParameterType));
+                            }
+                        }
+
+                        sb.Append($" -> ");
+                        if (outParamCount == 0 && refParamCount == 0)
+                            sb.Append(types[0]);
+                        else
+                        {
+                            sb.Append("Tuple[");
+                            for (int i = 0; i < types.Count; i++)
+                            {
+                                if (i > 0)
+                                    sb.Append(", ");
+                                sb.Append(types[i]);
+                            }
+                            sb.Append("]");
+                        }
+                    }
+                    sb.AppendLine(": ...");
+                }
+                // If no strings appended, class is empty. add "pass"
+                if (sb.ToString().Length == classStartString.Length)
+                {
+                    sb.AppendLine($"    pass");
+                }
+
+            }
             File.WriteAllText(path, sb.ToString());
         }
 
