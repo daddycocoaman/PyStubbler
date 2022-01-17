@@ -5,7 +5,6 @@ using System.Reflection;
 using System.IO;
 
 using DocoptNet;
-using PyStubblerLib;
 
 namespace PyStubbler
 {
@@ -15,16 +14,13 @@ namespace PyStubbler
 Usage:
     PyStubbler (-h | --help)
     PyStubbler (-V | --version)
-    PyStubbler [--dest=<dest_path>] [--search=<search_path>...] [--prefix=<prefix>] [--postfix=<postfix>] [--dest-is-root] <target_dll> ...
+    PyStubbler [--dest=<dest_path>] [--search=<search_path>...]  <target_dll> ...
 
 Options:
     -h --help                   Show this help
     -V --version                Show version
     --dest=<dest_path>          Path to save the subs to
     --search=<search_path>      Path to search for referenced assemblies
-    --prefix=<prefix>           Root namespace directory prefix
-    --postfix=<postfix>         Root namespace directory postfix
-    --dest-is-root              Use destination path for root namespace
 ";
 
         static void Main(string[] args)
@@ -37,12 +33,12 @@ Options:
                 if (File.Exists(assmPath))
                 {
                     // grab dest path if provided
-                    string destPath = null;
+                    string? destPath = null;
                     if (arguments["--dest"] != null && arguments["--dest"].IsString)
                         destPath = (string)arguments["--dest"].Value;
 
                     // grab search paths if provided
-                    string[] searchPaths = null;
+                    string[]? searchPaths = null;
                     if (arguments["--search"] != null && arguments["--search"].IsList)
                     {
                         List<string> lookupPaths = new List<string>();
@@ -54,25 +50,15 @@ Options:
                         searchPaths = lookupPaths.ToArray();
                     }
 
-                    // prepare generator configs
-                    // grab pre and postfixes for root namespace dir names
-                    var genCfg = new BuildConfig
-                    {
-                        Prefix = arguments["--prefix"] != null ? (string)arguments["--prefix"].Value : string.Empty,
-                        Postfix = arguments["--postfix"] != null ? (string)arguments["--postfix"].Value : string.Empty,
-                        DestPathIsRoot = arguments["--dest-is-root"] != null ? (bool)arguments["--dest-is-root"].Value : false,
-                    };
-
                     Console.WriteLine($"[*] Building stubs for {assmPath}");
                     try
                     {
-                        var dest = StubBuilder.BuildAssemblyStubs(
+                        StubBuilder.BuildAssemblyStubs(
                             assmPath,
-                            config: genCfg,
                             destPath: destPath,
                             searchPaths: searchPaths
                             );
-                        Console.WriteLine($"[*] Stubs saved to {dest}");
+                        Console.WriteLine($"[*] Stubs saved to {destPath}");
                     }
                     catch (Exception sgEx)
                     {

@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30114.105
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PyStubblerLib", "PyStubblerLib\PyStubblerLib.csproj", "{7E7854E6-DD6A-4A13-A7A5-3E7431B92004}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PyStubbler", "PyStubbler\PyStubbler.csproj", "{923DE021-7B17-4397-95A2-3F064211F13F}"
 EndProject
 Global
@@ -16,10 +14,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{7E7854E6-DD6A-4A13-A7A5-3E7431B92004}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7E7854E6-DD6A-4A13-A7A5-3E7431B92004}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7E7854E6-DD6A-4A13-A7A5-3E7431B92004}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7E7854E6-DD6A-4A13-A7A5-3E7431B92004}.Release|Any CPU.Build.0 = Release|Any CPU
 		{923DE021-7B17-4397-95A2-3F064211F13F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{923DE021-7B17-4397-95A2-3F064211F13F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{923DE021-7B17-4397-95A2-3F064211F13F}.Release|Any CPU.ActiveCfg = Release|Any CPU
