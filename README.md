@@ -1,4 +1,4 @@
-# PyStubber
+# PyStubbler
 
 A .NET Core Implementation for the builder found at https://github.com/mcneel/pythonstubs/tree/master/builder. Creates Python stubs from .NET assemblies. Anything specific to certain DLL packages (like Rhino) have been removed from this package.
 
