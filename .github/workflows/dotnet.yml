@@ -24,14 +24,19 @@ jobs:
 
           # Build everything
           dotnet restore
-          dotnet publish -r win-x64 --sc -c Release -o "build/win/48" -f net48
+          dotnet publish -r win-x64 --sc -c Release -o "build/win/48" -f net48 -p:PublishSingleFile=false
           dotnet publish -r win-x64 --sc -c Release -o "build/win/net6" -f net6
           dotnet publish -r linux-x64 --sc -c Release -o "build/nix/" -f net6
           dotnet publish -r osx-x64 --sc -c Release -o "build/osx/" -f net6
 
+          # Zip up windows files
+          cd build/win/48
+          7z a PyStubbler-$tag-win64.zip *
+          cd -
+
           # Move files to same dir
           mkdir dist
-          mv ./build/win/48/PyStubbler.exe dist/PyStubbler-$tag-win64.exe
+          mv ./build/win/48/PyStubbler-$tag-win64.zip dist/PyStubbler-$tag-win64.zip
           mv ./build/win/net6/PyStubbler.exe dist/PyStubblerCore-$tag-win64.exe
           mv ./build/nix/PyStubbler dist/PyStubblerCore-$tag-linux64
           mv ./build/osx/PyStubbler dist/PyStubblerCore-$tag-osx64

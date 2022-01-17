@@ -15,10 +15,6 @@
     <PackageReference Include="docopt.net" Version="0.7.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\PyStubblerLib\PyStubblerLib.csproj" />
-  </ItemGroup>
-
   <Target Name="PostClean" AfterTargets="Clean">
     <RemoveDir Directories="$(BaseIntermediateOutputPath)" />
     <!-- obj -->

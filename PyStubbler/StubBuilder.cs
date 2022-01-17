@@ -137,8 +137,12 @@ namespace PyStubbler
             try
             {
                 var obsolete = stub.GetCustomAttribute(typeof(System.ObsoleteAttribute));
+                if (obsolete != null)
+                {
+                    return;
+                }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return;
             }
