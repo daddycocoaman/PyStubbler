@@ -1,47 +1,47 @@
 name: .NET Builds
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*.*.*"
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: 6.0.x
-    
-    # Stole from https://github.com/patriksvensson/dotnet-release-artifacts/blob/master/.github/workflows/ci.yaml
-    - name: Build
-      shell: bash
-      run: |
-        tag=$(git describe --tags --abbrev=0)
-        release_name="PyStubber-$tag-${{ matrix.target }}"
-        
-        # Build everything
-        dotnet restore
-        dotnet publish -r win-x64 --sc -c Release -o "$release_name"
-        dotnet publish -r linux-x64 --sc -c Release -o "$release_name"
-        dotnet publish -r osx-x64 --sc -c Release -o "$release_name"
+      - uses: actions/checkout@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 6.0.x
 
-        # Pack files
-        if [ "${{ matrix.target }}" == "win-x64" ]; then
-          # Pack to zip for Windows
-          7z a -tzip "${release_name}.zip" "./${release_name}/*"
-        else
-        tar czvf "${release_name}.tar.gz" "$release_name"
-        fi
-        # Delete output directory
-        rm -r "$release_name"
-          
-    - name: Publish
-      uses: softprops/action-gh-release@v1
-      with:
-        files: "PyStubber-*"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Stole from https://github.com/patriksvensson/dotnet-release-artifacts/blob/master/.github/workflows/ci.yaml
+      - name: Build
+        shell: bash
+        run: |
+          tag=$(git describe --tags --abbrev=0)
+          release_name="PyStubber-$tag-${{ matrix.target }}"
+
+          # Build everything
+          dotnet restore
+          dotnet publish -r win-x64 --sc -c Release -o "$release_name"
+          dotnet publish -r linux-x64 --sc -c Release -o "$release_name"
+          dotnet publish -r osx-x64 --sc -c Release -o "$release_name"
+
+          # Pack files
+          if [ "${{ matrix.target }}" == "win-x64" ]; then
+            # Pack to zip for Windows
+            7z a -tzip "${release_name}.zip" "./${release_name}/*"
+          else
+          tar czvf "${release_name}.tar.gz" "$release_name"
+          fi
+          # Delete output directory
+          rm -r "$release_name"
+
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        with:
+          files: "PyStubber-*"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
