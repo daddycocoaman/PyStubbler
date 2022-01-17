@@ -30,8 +30,8 @@ jobs:
           # Move files to same dir
           mkdir dist
           mv ./build/win/PyStubbler.exe dist/PyStubber-$tag-win64.exe
-          mv ./build/nix/PyStubbler dist/PyStubber-$tag-linux64
-          mv ./build/osx/PyStubbler dist/PyStubber-$tag-osx64
+          mv ./build/nix/PyStubbler dist/PyStubbler-$tag-linux64
+          mv ./build/osx/PyStubbler dist/PyStubbler-$tag-osx64
 
       - name: Publish
         uses: softprops/action-gh-release@v1
