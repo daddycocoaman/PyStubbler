@@ -11,7 +11,6 @@ namespace PyStubbler
 
         public static void BuildAssemblyStubs(string targetAssemblyPath, string? destPath = null, string[]? searchPaths = null)
         {
-
             // prepare resolver
             AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(AssemblyResolve);
 
@@ -43,17 +42,6 @@ namespace PyStubbler
                     stubsDirectory = Directory.CreateDirectory(rootNamespace);
                 else
                     stubsDirectory = Directory.CreateDirectory(Path.Combine(destPath, rootNamespace));
-
-                // build type db
-                // var stubDictionary = new Dictionary<string, List<Type>>();
-                // foreach (var stub in typesToStub)
-                // {
-                //     if (!stubDictionary.ContainsKey(stub.Namespace))
-                //         stubDictionary[stub.Namespace] = new List<Type>();
-                //     stubDictionary[stub.Namespace].Add(stub);
-                // }
-
-                // List<string> namespaces = new List<string>(stubDictionary.Keys);
 
                 // generate stubs for each type
                 WriteStubList(stubsDirectory, namespaces.ToArray(), stub);
@@ -146,9 +134,14 @@ namespace PyStubbler
             sb.AppendLine("from typing import Tuple, Set, Iterable, List");
 
 
-            var obsolete = stub.GetCustomAttribute(typeof(System.ObsoleteAttribute));
-            if (obsolete != null)
+            try
+            {
+                var obsolete = stub.GetCustomAttribute(typeof(System.ObsoleteAttribute));
+            }
+            catch (Exception ex)
+            {
                 return;
+            }
 
             sb.AppendLine();
             sb.AppendLine();

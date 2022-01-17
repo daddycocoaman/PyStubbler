@@ -62,7 +62,8 @@ Options:
                     }
                     catch (Exception sgEx)
                     {
-                        Console.WriteLine($"[*] Error: Failed generating stubs | {sgEx.Message}");
+
+                        Console.WriteLine($"[*] Error: Failed generating stubs | {sgEx.ToString()}");
                     }
                 }
                 else
