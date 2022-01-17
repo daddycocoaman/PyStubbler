@@ -16,32 +16,26 @@ jobs:
         with:
           dotnet-version: 6.0.x
 
-      # Stole from https://github.com/patriksvensson/dotnet-release-artifacts/blob/master/.github/workflows/ci.yaml
       - name: Build
         shell: bash
         run: |
           tag=$(git describe --tags --abbrev=0)
-          release_name="PyStubber-$tag-${{ matrix.target }}"
 
           # Build everything
           dotnet restore
-          dotnet publish -r win-x64 --sc -c Release -o "$release_name"
-          dotnet publish -r linux-x64 --sc -c Release -o "$release_name"
-          dotnet publish -r osx-x64 --sc -c Release -o "$release_name"
+          dotnet publish -r win-x64 --sc -c Release -o "build/win/"
+          dotnet publish -r linux-x64 --sc -c Release -o "build/nix/"
+          dotnet publish -r osx-x64 --sc -c Release -o "build/osx/"
 
-          # Pack files
-          if [ "${{ matrix.target }}" == "win-x64" ]; then
-            # Pack to zip for Windows
-            7z a -tzip "${release_name}.zip" "./${release_name}/*"
-          else
-          tar czvf "${release_name}.tar.gz" "$release_name"
-          fi
-          # Delete output directory
-          rm -r "$release_name"
+          # Move files to same dir
+          mkdir dist
+          mv ./build/win/PyStubber.exe dist/PyStubber-$tag-win64.exe
+          mv ./build/nix/PyStubber dist/PyStubber-$tag-linux64
+          mv ./build/osx/PyStubber dist/PyStubber-$tag-osx64
 
       - name: Publish
         uses: softprops/action-gh-release@v1
         with:
-          files: "PyStubber-*"
+          files: "dist/PyStubber*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
