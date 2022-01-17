@@ -30,7 +30,7 @@ jobs:
 
           # Move files to same dir
           mkdir dist
-          mv ./build/win/PyStubbler.exe dist/PyStubber-$tag-win64.exe
+          mv ./build/win/PyStubbler.exe dist/PyStubbler-$tag-win64.exe
           mv ./build/nix/PyStubbler dist/PyStubbler-$tag-linux64
           mv ./build/osx/PyStubbler dist/PyStubbler-$tag-osx64
 
