@@ -29,13 +29,13 @@ jobs:
 
           # Move files to same dir
           mkdir dist
-          mv ./build/win/PyStubber.exe dist/PyStubber-$tag-win64.exe
-          mv ./build/nix/PyStubber dist/PyStubber-$tag-linux64
-          mv ./build/osx/PyStubber dist/PyStubber-$tag-osx64
+          mv ./build/win/PyStubbler.exe dist/PyStubber-$tag-win64.exe
+          mv ./build/nix/PyStubbler dist/PyStubber-$tag-linux64
+          mv ./build/osx/PyStubbler dist/PyStubber-$tag-osx64
 
       - name: Publish
         uses: softprops/action-gh-release@v1
         with:
-          files: "dist/PyStubber*"
+          files: "dist/PyStubbler*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
