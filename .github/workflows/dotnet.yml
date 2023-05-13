@@ -48,3 +48,6 @@ jobs:
           files: "dist/PyStubbler*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+  contents: write
