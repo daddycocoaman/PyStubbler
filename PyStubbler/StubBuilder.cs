@@ -233,6 +233,10 @@ namespace PyStubbler
                         else if (p.ParameterType.IsByRef)
                             refParamCount++;
                     }
+
+                    if (method.IsStatic)
+                        sb.AppendLine("    @staticmethod");
+
                     int parameterCount = parameters.Length - outParamCount;
 
                     if (method.IsSpecialName && (method.Name.StartsWith("get_") || method.Name.StartsWith("set_")))
